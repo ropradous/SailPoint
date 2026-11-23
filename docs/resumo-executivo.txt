@@ -1,0 +1,255 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                ║
+║           GOVERNANÇA DE IDENTIDADE E ACESSO (IGA)                             ║
+║           Confluent Cloud, SailPoint IdentityNow & Microsoft Entra ID         ║
+║                                                                                ║
+║           Resumo Executivo para Time de Arquitetura de Segurança              ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+📋 VISÃO GERAL
+═════════════════════════════════════════════════════════════════════════════════
+
+A solução integra SailPoint IdentityNow, Microsoft Entra ID e Confluent Cloud APIs
+para gerenciar o ciclo de vida completo de identidades (JML - Joiner, Mover, Leaver)
+com governança centralizada, rastreabilidade ponta-a-ponta e conformidade regulatória.
+
+Objetivo: Eliminar credenciais locais humanas e garantir acesso controlado e auditável
+ao Confluent Cloud para usuários e aplicações.
+
+
+🎯 OBJETIVOS ESTRATÉGICOS
+═════════════════════════════════════════════════════════════════════════════════
+
+✓ Eliminar 100% das credenciais locais humanas
+  → Autenticação exclusivamente via SSO (Microsoft Entra ID + SAML 2.0)
+
+✓ Centralizar governança de identidades
+  → SailPoint como single source of truth (SoA)
+  → APIs REST Confluent Cloud para automatização
+
+✓ Garantir rastreabilidade ponta-a-ponta
+  → Auditoria completa: aprovação → concessão → revogação
+  → Integração com SIEM corporativo
+
+✓ Conformidade regulatória
+  → Suporta SOX, LGPD, GDPR
+  → Segregação de identidades
+  → Recertificação periódica de acessos
+
+
+💼 MODELO OPERACIONAL
+═════════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  SAILPOINT (Motor de IGA)                                                   │
+│  ├─ Catálogo de Acesso (Confluence Cloud Access Profiles)                 │
+│  ├─ Fluxos de Aprovação (Manager/Owner)                                   │
+│  ├─ Access Certifications (Trimestral/Semestral)                          │
+│  ├─ Entra ID Connector (Sincronização de Grupos)                          │
+│  └─ Web Services Connector (REST /iam/v2)                                 │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  IDENTIDADES HUMANAS                 │  IDENTIDADES DE APP                 │
+│  (Federadas via SSO)                 │  (Service Accounts)                 │
+│                                      │                                     │
+│  ✓ Autenticação Entra ID             │  ✓ API Keys → Cofre Corporativo    │
+│  ✓ Zero Credenciais Locais           │  ✓ RBAC Granular (CRN)             │
+│  ✓ Group Mapping → RBAC              │  ✓ Governança via SailPoint        │
+│  ✓ Revogação Instantânea             │  ✓ Offboarding Automático          │
+│                                      │                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  CONFLUENT CLOUD (Plano de Dados + IAM)                                   │
+│  ├─ Validação SAML (Human Identities)                                     │
+│  ├─ Group Mapping (Automatic RBAC)                                        │
+│  ├─ Service Account Management                                            │
+│  └─ Role Bindings por CRN (Env, Cluster, Tópico, Consumer Group)         │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+📊 MATRIZ DE COMUNICAÇÃO ENTRE COMPONENTES
+═════════════════════════════════════════════════════════════════════════════════
+
+SailPoint ←→ Entra ID (Native Connector)
+├─ Sincronização: Adicionar/Remover usuários em grupos SG-CONFLUENT-*
+├─ Frequência: Contínua (real-time sync)
+└─ Fluxo: SailPoint gerencia membership, Entra ID valida identidade
+
+SailPoint ←→ Confluent Cloud (Web Services Connector + REST APIs)
+├─ Endpoints:
+│  ├─ Account Aggregation: GET /iam/v2/service-accounts
+│  ├─ Create Account: POST /iam/v2/service-accounts
+│  ├─ Add Entitlement: POST /iam/v2/role-bindings
+│  ├─ Remove Entitlement: DELETE /iam/v2/role-bindings/{id}
+│  └─ Delete Account: DELETE /iam/v2/service-accounts/{id}
+├─ Autenticação: Basic Auth (Cloud API Key / Secret)
+└─ Fluxo: SailPoint provisiona/revoga, Confluent Cloud enforça
+
+Entra ID ←→ Confluent Cloud (SAML 2.0 SSO + Group Mapping)
+├─ Fluxo: Usuário faz login → SAML assertion com Object IDs dos grupos
+├─ Confluent: Mapeia Object ID → RBAC role
+└─ Resultado: Acesso imediato baseado em group membership
+
+
+✅ BENEFÍCIOS TANGÍVEIS
+═════════════════════════════════════════════════════════════════════════════════
+
+🔒 Segurança
+  • Revogação instantânea de acesso (via desligamento Entra ID ou deletion SailPoint)
+  • Zero credenciais compartilhadas ou hardcoded
+  • API Keys rotacionadas automaticamente
+  • MFA obrigatória via Entra ID
+  • Conditional Access policies enforcement
+
+⚡ Eficiência Operacional
+  • Onboarding de usuários: de semanas para horas
+  • Onboarding de aplicações: de dias para minutos
+  • Automação de JML (Joiner, Mover, Leaver)
+  • Redução de tickets manuais em ~80%
+
+📈 Conformidade e Auditoria
+  • Rastreabilidade completa de todas as operações
+  • Access Certifications periódicas
+  • Integração com SIEM corporativo
+  • Suporte a SOX, LGPD, GDPR
+
+💰 Redução de Risco
+  • Eliminação de contas órfãs
+  • Segregação clara de responsabilidades
+  • Conformidade com políticas corporativas
+  • Redução de incidentes de segurança relacionados a identidades
+
+
+🛠️ ESTRUTURA TÉCNICA
+═════════════════════════════════════════════════════════════════════════════════
+
+Padrão de Nomenclatura Obrigatório:
+
+Grupos Entra ID:
+  SG-CONFLUENT-<AMBIENTE>-<DOMINIO>-<ROLE>
+  Exemplo: SG-CONFLUENT-PROD-PAGAMENTOS-READ
+
+Service Accounts:
+  sa-<sigla-app>-<ambiente>
+  Exemplo: sa-pix-prod
+
+Descrição (Metadados):
+  AppID: APP-<número> | Owner: squad@empresa.com | Managed by SailPoint
+
+
+Requisitos de Segurança:
+
+Credencial SailPoint:
+  • Service Account: sa-sailpoint-iga
+  • Role: OrganizationAdmin (mínimo: Assigner)
+  • Autenticação: Cloud API Key gerada especificamente
+
+IP Filtering:
+  • Se aplicável, adicionar IPs de saída (NAT) dos VAs do SailPoint
+  • Manter whitelist atualizada
+
+Rotação de Credenciais:
+  • Cloud API Keys: 90 dias
+  • Kafka API Keys: Rotação automática via SailPoint ou cofre
+
+
+🗓️ PLANO DE IMPLEMENTAÇÃO (6-7 Semanas)
+═════════════════════════════════════════════════════════════════════════════════
+
+Fase 1: Preparação (Sem 1-2)
+├─ Criar sa-sailpoint-iga no Confluent Cloud
+├─ Gerar Cloud API Key
+└─ Testar conectividade básica
+
+Fase 2: Integração Entra ID (Sem 2-3)
+├─ Configurar Entra ID Connector no SailPoint
+├─ Criar grupos SG-CONFLUENT-*
+├─ Configurar Group Mapping no Confluent
+└─ Testar fluxo SSO completo
+
+Fase 3: Web Services Connector (Sem 3-4)
+├─ Configurar connectorREST no SailPoint
+├─ Testar account aggregation
+├─ Testar entitlement aggregation
+└─ Validar transformações de dados
+
+Fase 4: Operações de Provisionamento (Sem 4-5)
+├─ Configurar CREATE, ADD, REMOVE, DELETE
+├─ Testar operações individuais
+└─ Testar fluxo end-to-end
+
+Fase 5: Catálogo e Aprovações (Sem 5-6)
+├─ Criar Access Profiles
+├─ Configurar fluxos de aprovação
+├─ Teste piloto com 2-3 aplicações
+└─ Treinamento de stakeholders
+
+Fase 6: Governança Contínua (Sem 6-7)
+├─ Habilitar Audit Logs
+├─ Integração com SIEM
+├─ Access Certifications
+└─ Documentação e runbooks
+
+
+📚 RECURSOS INCLUÍDOS
+═════════════════════════════════════════════════════════════════════════════════
+
+1. Diagrama de Arquitetura Visual
+   → Fluxos de comunicação entre SailPoint, Entra ID e Confluent Cloud
+   → Dois domínios de identidade: Humanas e Aplicações
+   → Tipos de acesso e autenticação
+
+2. Apresentação HTML Completa
+   → Executive Summary
+   → Princípios arquiteturais
+   → Fluxos operacionais (JML)
+   → Especificação de APIs /iam/v2
+   → Requisitos de segurança
+   → Plano de implementação
+   → Referências e links
+
+3. Referência Técnica Detalhada
+   → Links de referência para cada plataforma
+   → Especificações JSON de configuração
+   → Mapeamento de endpoints
+   → Padrões de nomenclatura
+   → Checklist de implementação completo
+   → Troubleshooting comum
+   → Contatos e escalação
+
+4. Documento Executivo (este arquivo)
+   → Resumo de 1 página
+   → Visão geral para decisores
+
+
+🚀 PRÓXIMOS PASSOS
+═════════════════════════════════════════════════════════════════════════════════
+
+1. Revisar arquitetura com Time de Segurança e IAM
+2. Obter aprovação de CIO para padrão de nomenclatura
+3. Iniciar Fase 1 no ambiente DEV do SailPoint
+4. Escalonar para PROD com plano de cutover e rollback
+5. Comunicar roadmap aos stakeholders
+
+
+📞 CONTATOS
+═════════════════════════════════════════════════════════════════════════════════
+
+Arquitetura de Segurança:   security-architecture@empresa.com
+Time de IAM:                iam-team@empresa.com
+Suporte Confluent:          https://support.confluent.io
+Suporte SailPoint:          https://support.sailpoint.com
+
+
+═════════════════════════════════════════════════════════════════════════════════
+
+Versão: 1.0
+Data: 23 de Novembro de 2026
+Classificação: Arquitetura de Segurança
+
+═════════════════════════════════════════════════════════════════════════════════
